@@ -3,5 +3,6 @@ Clique para usar o sistema: [Reforço Escolar Online](https://reforco-escolar-km
 
 login:
 
-admin@gmail.com
-admin0123
+email: admin@gmail.com
+
+senha: admin0123
