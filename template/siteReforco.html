@@ -329,7 +329,29 @@
         </section>
 
         <section id="matriculas" class="tela oculto">
-          <h1>Nova Matrícula</h1>
+          <h1>Matrículas</h1>
+          <p class="subtitulo">Alunos matriculados e nova matrícula</p>
+
+          <div class="card-tabela" style="margin-bottom: 36px;">
+            <div class="cabecalho-painel">Matrículas Ativas</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Aluno</th>
+                  <th>Curso</th>
+                  <th>Data da Matrícula</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaMatriculas">
+                <tr>
+                  <td colspan="4" class="estado-vazio">Nenhuma matrícula cadastrada.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 class="titulo-rapido">Nova Matrícula</h2>
           <p class="subtitulo">Vincular aluno a um curso</p>
 
           <div class="card-formulario">
@@ -877,7 +899,9 @@ async function carregarAlunos() {
           formMatricula.reset();
           document.getElementById('idAlunoSelecionado').value = '';
           document.getElementById('idCursoSelecionado').value = '';
-          abrirTela('inicio'); 
+          await carregarMatriculas(); // Atualiza a tabela de matrículas
+          await carregarCursos(); // Atualiza vagas dos cursos
+          abrirTela('matriculas'); 
         } else {
           mostrarMensagem(resultado.erro || 'Erro ao realizar matrícula.');
         }
@@ -1022,6 +1046,55 @@ async function carregarAlunos() {
       }
     }
 
+    // --- LÓGICA DE MATRÍCULAS (LISTAR E EXCLUIR) ---
+    async function carregarMatriculas() {
+      try {
+        const resposta = await fetch('/api/matriculas');
+        const matriculas = await resposta.json();
+        const tbody = document.getElementById('tabelaMatriculas');
+
+        if (!Array.isArray(matriculas) || matriculas.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="estado-vazio">Nenhuma matrícula cadastrada.</td></tr>';
+          document.getElementById('contadorMatriculas').textContent = 0;
+          return;
+        }
+
+        tbody.innerHTML = '';
+        matriculas.forEach(m => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${m.aluno}</td>
+              <td>${m.curso}</td>
+              <td>${m.data_matricula || '-'}</td>
+              <td>
+                <i data-lucide="trash-2" size="18" style="cursor:pointer; color:#ef4444;" onclick="removerMatricula(${m.id_matricula})"></i>
+              </td>
+            </tr>
+          `;
+        });
+        document.getElementById('contadorMatriculas').textContent = matriculas.length;
+        atualizarIcones();
+      } catch (erro) {
+        console.error("Erro ao carregar matrículas:", erro);
+      }
+    }
+
+    async function removerMatricula(idMatricula) {
+      if (!confirm('Deseja cancelar esta matrícula?')) return;
+      try {
+        const resposta = await fetch(`/api/matriculas/${idMatricula}`, { method: 'DELETE' });
+        if (resposta.ok) {
+          mostrarMensagem('Matrícula cancelada com sucesso!');
+          await carregarMatriculas();
+          await carregarCursos(); // Atualiza vagas
+        } else {
+          mostrarMensagem('Erro ao cancelar matrícula.');
+        }
+      } catch (erro) {
+        mostrarMensagem('Falha de conexão.');
+      }
+    }
+
     // --- LÓGICA DE ATENDIMENTOS (LISTAR E EXCLUIR) ---
    async function carregarAtendimentos() {
       try {
@@ -1089,6 +1162,7 @@ async function carregarAlunos() {
 
       await carregarAlunos(); 
       await carregarCursos(); 
+      await carregarMatriculas();
       await carregarAtendimentos();
       // -----------------------------
 
