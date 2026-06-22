@@ -162,7 +162,7 @@
               <input type="text" id="buscaTabelaAlunos" placeholder="Buscar aluno por nome">
             </div>
 
-            <select>
+            <select id="filtroNivelAlunos">
               <option>Todos os níveis</option>
               <option>Básico</option>
               <option>Intermediário</option>
@@ -226,10 +226,6 @@
                   </select>
                 </div>
 
-                <div class="linha-inteira">
-                  <label>Observações</label>
-                  <textarea placeholder="Informações adicionais sobre o aluno"></textarea>
-                </div>
               </div>
 
               <div class="acoes-formulario">
@@ -249,7 +245,7 @@
               <input type="text" id="buscaTabelaCursos" placeholder="Buscar curso por nome">
             </div>
 
-            <select>
+            <select id="filtroNivelCursos">
               <option>Todos os níveis</option>
               <option>Básico</option>
               <option>Intermediário</option>
@@ -307,16 +303,6 @@
                 <div>
                   <label>Quantidade de vagas <span class="obrigatorio">*</span></label>
                   <input id="vagasTotaisCurso" type="number" placeholder="Ex: 30">
-                </div>
-
-                <div>
-                  <label>Carga horária</label>
-                  <input placeholder="Ex: 40h">
-                </div>
-
-                <div class="linha-inteira">
-                  <label>Descrição do curso</label>
-                  <textarea placeholder="Descreva o conteúdo do curso"></textarea>
                 </div>
               </div>
 
@@ -429,9 +415,13 @@
                   <input id="atendimentoMotivo" placeholder="Ex: Dificuldade em matemática">
                 </div>
 
-                <div class="linha-inteira">
-                  <label>Observações</label>
-                  <textarea placeholder="Detalhes adicionais sobre o atendimento"></textarea>
+                <div>
+                  <label>Status</label>
+                  <select id="atendimentoStatus">
+                    <option value="agendado">Agendado</option>
+                    <option value="realizado">Realizado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
                 </div>
               </div>
 
@@ -669,6 +659,35 @@
         }
 
         const telaDestino = botaoNavegacao.dataset.tela;
+
+        // Se for navegar para formulários de criação via botão, garante que não fica em modo edição
+        if (telaDestino === 'cadastroAtendimento') {
+          idAtendimentoEditando = null;
+          const formAtend = document.getElementById('formAtendimento');
+          if (formAtend) formAtend.reset();
+          document.querySelector('#cadastroAtendimento h1').textContent = 'Agendar Atendimento';
+        }
+        if (telaDestino === 'cadastroAluno') {
+          idAlunoEditando = null;
+          const formAl = document.getElementById('formAluno');
+          if (formAl) formAl.reset();
+          document.querySelector('#cadastroAluno h1').textContent = 'Cadastro de Aluno';
+        }
+        if (telaDestino === 'cadastroCurso') {
+          idCursoEditando = null;
+          const formCur = document.getElementById('formCurso');
+          if (formCur) formCur.reset();
+          document.querySelector('#cadastroCurso h1').textContent = 'Cadastro de Curso';
+        }
+        if (telaDestino === 'cadastroMatricula') {
+          idMatriculaEditando = null;
+          const formMat = document.getElementById('formMatricula');
+          if (formMat) formMat.reset();
+          document.getElementById('idAlunoSelecionado').value = '';
+          document.getElementById('idCursoSelecionado').value = '';
+          document.querySelector('#cadastroMatricula h1').textContent = 'Nova Matrícula';
+        }
+
         abrirTela(telaDestino);
       });
     }
@@ -1015,11 +1034,19 @@ async function carregarAlunos() {
       if (formAtendimento) {
         formAtendimento.addEventListener('submit', async function(e) {
           e.preventDefault();
+          const idAluno = document.getElementById('atendimentoAluno').value;
+
+          if (!idAluno || isNaN(idAluno)) {
+            mostrarMensagem('Por favor, selecione um aluno válido!');
+            return;
+          }
+
           const dados = {
-            id_aluno: document.getElementById('atendimentoAluno').value,
+            id_aluno: idAluno,
             data: document.getElementById('atendimentoData').value,
             horario: document.getElementById('atendimentoHorario').value,
-            motivo: document.getElementById('atendimentoMotivo').value
+            motivo: document.getElementById('atendimentoMotivo').value,
+            status: document.getElementById('atendimentoStatus').value
           };
 
           try {
@@ -1160,7 +1187,7 @@ async function carregarAlunos() {
               <td>${atend.motivo}</td>
               <td><span class="etiqueta ${classeStatus}">${atend.status || 'Agendado'}</span></td>
               <td>
-                <i data-lucide="edit" size="18" style="cursor:pointer; margin-right:8px; color:#64748b;" onclick="editarAtendimento(${atend.id_atendimento}, '${atend.data}', '${atend.horario}', '${atend.motivo}', '${atend.status}')"></i>
+                <i data-lucide="edit" size="18" style="cursor:pointer; margin-right:8px; color:#64748b;" onclick="editarAtendimento(${atend.id_atendimento}, ${atend.id_aluno}, '${atend.data}', '${atend.horario}', '${atend.motivo}', '${atend.status}')"></i>
                 <i data-lucide="trash-2" size="18" style="cursor:pointer; color:#ef4444;" onclick="removerAtendimento(${atend.id_atendimento})"></i>
               </td>
             </tr>
@@ -1274,11 +1301,15 @@ async function carregarAlunos() {
     // --- EDITAR ATENDIMENTO ---
     let idAtendimentoEditando = null;
 
-    function editarAtendimento(id, data, horario, motivo, status) {
+    function editarAtendimento(id, idAluno, data, horario, motivo, status) {
       idAtendimentoEditando = id;
+      const selAluno = document.getElementById('atendimentoAluno');
+      for (let op of selAluno.options) { if (op.value == idAluno) op.selected = true; }
       document.getElementById('atendimentoData').value = data;
       document.getElementById('atendimentoHorario').value = horario.substring(0, 5);
       document.getElementById('atendimentoMotivo').value = motivo;
+      const selStatus = document.getElementById('atendimentoStatus');
+      for (let op of selStatus.options) { if (op.value === status) op.selected = true; }
       document.querySelector('#cadastroAtendimento h1').textContent = 'Editar Atendimento';
       abrirTela('cadastroAtendimento');
     }
@@ -1307,29 +1338,33 @@ async function carregarAlunos() {
       const buscaAlunos = document.getElementById('buscaTabelaAlunos');
       const buscaCursos = document.getElementById('buscaTabelaCursos');
       const buscaAtendimentos = document.getElementById('buscaTabelaAtendimentos');
+      const filtroNivelAlunos = document.getElementById('filtroNivelAlunos');
+      const filtroNivelCursos = document.getElementById('filtroNivelCursos');
 
-      function filtrarTabela(input, seletorTabela) {
-        if(!input) return;
+      function filtrarTabela(inputBusca, selectNivel, seletorTabela) {
+        if(!inputBusca && !selectNivel) return;
         function executarFiltro() {
-          const termo = input.value.toLowerCase();
+          const termo = inputBusca ? inputBusca.value.toLowerCase() : '';
+          const nivel = selectNivel ? selectNivel.value : '';
           const tabela = document.querySelector(seletorTabela);
           if (!tabela) return;
           const linhas = tabela.querySelectorAll('tbody tr');
-          
           linhas.forEach(linha => {
             if(linha.querySelector('.estado-vazio')) return;
             const textoLinha = linha.textContent.toLowerCase();
-            linha.style.display = textoLinha.includes(termo) ? '' : 'none';
+            const passaBusca = textoLinha.includes(termo);
+            const passaNivel = !nivel || nivel === 'Todos os níveis' || textoLinha.includes(nivel.toLowerCase());
+            linha.style.display = passaBusca && passaNivel ? '' : 'none';
           });
         }
-        input.addEventListener('input', executarFiltro);
-        input.addEventListener('keyup', executarFiltro);
+        if(inputBusca) { inputBusca.addEventListener('input', executarFiltro); inputBusca.addEventListener('keyup', executarFiltro); }
+        if(selectNivel) selectNivel.addEventListener('change', executarFiltro);
       }
 
-      filtrarTabela(buscaAlunos, '#alunos table');
-      filtrarTabela(buscaCursos, '#cursos table');
-      filtrarTabela(buscaAtendimentos, '#atendimentos table');
-      filtrarTabela(document.getElementById('buscaTabelaMatriculas'), '#matriculas table');
+      filtrarTabela(buscaAlunos, filtroNivelAlunos, '#alunos table');
+      filtrarTabela(buscaCursos, filtroNivelCursos, '#cursos table');
+      filtrarTabela(buscaAtendimentos, null, '#atendimentos table');
+      filtrarTabela(document.getElementById('buscaTabelaMatriculas'), null, '#matriculas table');
     }
 
     iniciarAplicacao();
